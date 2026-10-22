@@ -1,0 +1,225 @@
+/**
+ * @name Quiet Workspace
+ * @description A quiet graphite workspace: document-like forum rows, readable conversations, and restrained media. CSS only.
+ * @author Haven Community
+ * @version 0.1.0
+ * @icon Q
+ * @haven-theme-api 1
+ */
+
+/* Public Theme API tokens and regions first. The component rules below target
+   Haven 4.27 markup and should be checked when upgrading. No controls are hidden,
+   no DOM is moved, and native message-density geometry remains untouched. */
+:root {
+  --bg-primary: #202122;
+  --bg-secondary: #191a1b;
+  --bg-tertiary: #27282a;
+  --bg-hover: #2d2f31;
+  --bg-active: #34383b;
+  --bg-input: #242628;
+  --bg-card: #222426;
+  --accent: #a6b9b4;
+  --accent-hover: #c2d0cc;
+  --accent-glow: transparent;
+  --accent-text: #18221f;
+  --text-primary: #dedfdd;
+  --text-secondary: #b2b4b2;
+  --text-muted: #969b99;
+  --text-link: #b5c9c3;
+  --border: #343638;
+  --border-light: #474b4d;
+  --success: #a7c3ad;
+  --success-text: #17251b;
+  --danger: #e2a5a2;
+  --danger-text: #2c1716;
+  --warning: #d4bf94;
+  --warning-text: #2b2416;
+  --led-on: #a7c3ad;
+  --led-off: #727775;
+  --led-glow: transparent;
+  --font-main: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  --font-heading: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: Consolas, "Cascadia Code", monospace;
+  --radius: 0.375rem;
+  --radius-sm: 0.25rem;
+  --transition: 0.12s ease;
+  --msg-glow: none;
+  --scanline: none;
+}
+
+html[data-haven-theme-api="1"] { color-scheme: dark; }
+[data-haven-page="app"] :is([data-haven-region="main"], [data-haven-region="message-area"]) {
+  background: var(--bg-primary);
+}
+[data-haven-region="server-rail"] {
+  background: var(--bg-secondary);
+  border-inline-end: 1px solid var(--border);
+}
+:is([data-haven-region="navigation-sidebar"], [data-haven-region="context-sidebar"]) {
+  background: var(--bg-secondary);
+}
+:is([data-haven-region="channel-header"], [data-haven-region="sidebar-footer"]) {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  box-shadow: none;
+}
+:is([data-haven-region="message-list"], [data-haven-region="sidebar-content"], [data-haven-region="context-sidebar"]) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+[data-haven-region="composer"] {
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border);
+  transition: border-color var(--transition);
+}
+[data-haven-region="composer"]:focus-within { border-color: var(--accent); }
+[data-haven-region="composer"] textarea {
+  background: var(--bg-input);
+  border-color: var(--border-light);
+  box-shadow: none;
+  line-height: 1.65;
+}
+[data-haven-region="composer"] textarea:focus { border-color: var(--accent); }
+
+/* Component-level presentation; preserve hidden states, safety blurs and
+   gallery layouts. Avoid filter overrides on protected message content. */
+[data-haven-page="app"] .brand-text {
+  font-size: 0.95rem;
+  letter-spacing: 0.035em;
+  font-weight: 600;
+}
+[data-haven-page="app"] .logo-sm { color: var(--text-secondary); }
+[data-haven-region="channel-header"] :is(.desktop-app-banner, .android-beta-banner) {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  animation: none;
+  filter: grayscale(1);
+}
+[data-haven-region="channel-header"] :is(button, a),
+[data-haven-region="sidebar-actions"] button,
+[data-haven-region="channels"] .channel-hash {
+  filter: grayscale(1);
+}
+[data-haven-page="app"] .server-icon {
+  border-radius: 0.375rem;
+  box-shadow: none;
+}
+[data-haven-region="channels"] .channel-item { border-radius: 0.25rem; }
+[data-haven-region="channels"] .channel-item.active {
+  background: var(--bg-active);
+  box-shadow: none;
+}
+[data-haven-region="channels"] .channel-item.active::before {
+  background: var(--accent);
+  box-shadow: none;
+}
+[data-haven-region="message-list"] :is(.message, .message-compact) {
+  border-radius: 0;
+  box-shadow: none;
+}
+[data-haven-region="message-list"] :is(.message, .message-compact):hover {
+  background: var(--bg-hover);
+  box-shadow: none;
+}
+[data-haven-region="message-list"] .message-content { line-height: 1.8; }
+[data-haven-region="message-list"] .message-header { margin-bottom: 0.35rem; }
+[data-haven-region="message-list"] .message-time {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+[data-haven-region="message-list"] :is(.message-avatar, .message-avatar-img) {
+  /* Keep native avatar dimensions so compact follow-ups remain aligned. */
+  border-radius: 0.25rem;
+  filter: grayscale(1);
+}
+[data-haven-region="message-list"] .message-author {
+  /* Inline role colors remain available, but the surrounding UI is quiet. */
+  font-weight: 500;
+}
+[data-haven-region="message-list"] pre {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+[data-haven-region="message-list"] blockquote {
+  background: var(--bg-card);
+  border-inline-start-color: var(--border-light);
+}
+[data-haven-region="message-list"] img.chat-image {
+  max-height: 8rem;
+  max-width: min(100%, 16rem);
+  object-fit: contain;
+}
+[data-haven-region="message-list"] :is(.reaction, .reaction-btn) {
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+[data-haven-region="message-list"] .forum-toolbar {
+  border-radius: 0;
+  padding-block: 0.75rem;
+  margin-bottom: 0;
+}
+[data-haven-region="message-list"]:not(.forum-gallery) .forum-topics { gap: 0; }
+[data-haven-region="message-list"]:not(.forum-gallery) .forum-topic {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0.85rem 0.6rem;
+  box-shadow: none;
+}
+[data-haven-region="message-list"]:not(.forum-gallery) .forum-topic:hover {
+  background: var(--bg-hover);
+  transform: none;
+}
+[data-haven-region="message-list"]:not(.forum-gallery) .forum-topic-unread {
+  box-shadow: inset 2px 0 var(--accent);
+}
+[data-haven-region="message-list"]:not(.forum-gallery) .forum-topic-thumb {
+  flex-basis: 2.75rem;
+  width: 2.75rem;
+  height: 3.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.2rem;
+}
+[data-haven-region="message-list"]:not(.forum-gallery) .forum-topic-thumb-empty {
+  background: var(--bg-secondary);
+  font-size: 1rem;
+}
+[data-haven-region="message-list"]:not(.forum-gallery) .forum-topic-title {
+  font-size: 0.95rem;
+  font-weight: 550;
+  line-height: 1.6;
+}
+[data-haven-region="message-list"]:not(.forum-gallery) .forum-topic-snippet {
+  font-size: 0.8125rem;
+  line-height: 1.8;
+}
+[data-haven-region="message-list"] .forum-topic-meta {
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+  font-size: 0.6875rem;
+  padding-top: 0.5rem;
+}
+[data-haven-region="message-list"] :is(.forum-tag-chip, .forum-tag) { border-radius: 0.25rem; }
+[data-haven-region="message-list"] .forum-unread-dot { animation: none; box-shadow: none; }
+
+@media (min-width: 901px) {
+  :root { --sidebar-width: 15rem; --right-width: 13rem; }
+  [data-haven-region="navigation-sidebar"] { width: var(--sidebar-width); }
+  [data-haven-region="context-sidebar"] { width: var(--right-width); }
+  [data-haven-region="channel-header"] { min-height: 3.25rem; padding: 0.625rem 1.5rem; }
+  [data-haven-page="app"] [data-haven-region="message-list"] {
+    padding-inline: max(1.5rem, calc((100% - 54rem) / 2));
+    padding-block: 1.25rem;
+  }
+  [data-haven-region="composer"] {
+    padding-inline: max(1.5rem, calc((100% - 54rem) / 2));
+    padding-block: 0.875rem 1rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) { :root { --transition: 0s; } }
