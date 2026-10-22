@@ -469,6 +469,7 @@ _renderMessages(messages, lastReadMessageId) {
   // Cache the last batch so other handlers can re-render (e.g. mention
   // formatting after channel-members arrives on first load). (#5273)
   this._lastRenderedMessages = messages;
+  this._lastRenderedChannel = this.currentChannel;
   this._lastRenderedReadId = lastReadMessageId;
   // Track persona names seen in this channel so @PersonaName mentions
   // resolve and ping the persona's owner. (#5349)

@@ -17,6 +17,32 @@ _listenFeatureEvents() {
 
   // ── Threads ───────────────────────────────────────
   this.socket.on('thread-messages', async (data) => {
+    if (!data || data.parentId == null || this._activeThreadParent == null
+        || String(data.parentId) !== String(this._activeThreadParent)) return;
+    const channelCode = this.currentChannel;
+    if (data.channelCode && data.channelCode !== channelCode) return;
+    const navigationEpoch = this._threadNavigationEpoch || 0;
+    const responseId = this._threadHistoryResponseId = (this._threadHistoryResponseId || 0) + 1;
+    // A tab can change while decryption is pending. Even opening the same
+    // thread again starts a new view; an older response must not replace it.
+    const isCurrent = () => this.currentChannel === channelCode
+      && String(this._activeThreadParent) === String(data.parentId)
+      && (this._threadNavigationEpoch || 0) === navigationEpoch
+      && this._threadHistoryResponseId === responseId;
+
+    // E2E: thread lives inside a DM channel, so decrypt parent + messages
+    // before rendering so the preview/header and message bodies show plain text.
+    if (data.parentContent && window.HavenE2E && HavenE2E.isEncrypted(data.parentContent)) {
+      const wrapper = [{ content: data.parentContent }];
+      try { await this._decryptMessages(wrapper, channelCode); } catch (err) { console.warn('[Thread] could not decrypt the parent message', err); }
+      if (!isCurrent()) return;
+      data.parentContent = wrapper[0].content;
+    }
+    if (data.messages && data.messages.length) {
+      try { await this._decryptMessages(data.messages, channelCode); } catch (err) { console.warn('[Thread] could not decrypt thread messages', err); }
+    }
+    if (!isCurrent()) return;
+
     this._applyThreadClosed?.(!!data.closed);
     if (data.parentUsername) {
       this._setThreadParentHeader({
@@ -25,18 +51,6 @@ _listenFeatureEvents() {
         avatar: data.parentAvatar || null,
         avatarShape: data.parentAvatarShape || 'circle'
       });
-    }
-
-    // E2E: thread lives inside a DM channel, so decrypt parent + messages
-    // before rendering so the preview/header and message bodies show plain text.
-    const channelCode = data.channelCode || this.currentChannel;
-    if (data.parentContent && window.HavenE2E && HavenE2E.isEncrypted(data.parentContent)) {
-      const wrapper = [{ content: data.parentContent }];
-      try { await this._decryptMessages(wrapper, channelCode); } catch (err) { console.warn('[Thread] could not decrypt the parent message', err); }
-      data.parentContent = wrapper[0].content;
-    }
-    if (data.messages && data.messages.length) {
-      try { await this._decryptMessages(data.messages, channelCode); } catch (err) { console.warn('[Thread] could not decrypt thread messages', err); }
     }
 
     // Update parent preview from server (authoritative source)
@@ -66,10 +80,13 @@ _listenFeatureEvents() {
     if (data.channelCode !== this.currentChannel) return;
     // If this thread is open, append the message
     if (this._activeThreadParent === data.parentId) {
+      const navigationEpoch = this._threadNavigationEpoch || 0;
       // E2E: decrypt before render for DM threads
       if (data.message) {
         try { await this._decryptMessages([data.message], data.channelCode); } catch (err) { console.warn('[Thread] could not decrypt the new thread message', err); }
       }
+      if (data.channelCode !== this.currentChannel || this._activeThreadParent !== data.parentId
+          || (this._threadNavigationEpoch || 0) !== navigationEpoch) return;
       this._appendThreadMessage(data.message, { live: true });
     }
   });
@@ -191,7 +208,8 @@ _listenFeatureEvents() {
       // First load can render messages before members arrive, so the
       // mention regex falls back to login names. Re-render once members
       // are known so display names + valid-mention filtering kick in. (#5273)
-      if (wasEmpty && this._lastRenderedMessages && this._lastRenderedMessages.length) {
+      if (wasEmpty && this._lastRenderedChannel === this.currentChannel
+          && this._lastRenderedMessages && this._lastRenderedMessages.length) {
         try { this._renderMessages(this._lastRenderedMessages, this._lastRenderedReadId); } catch (err) { console.warn('[Messages] re-render after the member list arrived failed', err); }
       }
     }

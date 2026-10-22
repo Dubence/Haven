@@ -11,6 +11,7 @@
   <title>Haven</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cG9seWdvbiBwb2ludHM9IjUwLDMgOTMsMjggOTMsNzIgNTAsOTcgNyw3MiA3LDI4IiBmaWxsPSJub25lIiBzdHJva2U9IiM2YjRmZGIiIHN0cm9rZS13aWR0aD0iOCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjx0ZXh0IHg9IjUwIiB5PSI2MyIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsLEhlbHZldGljYSxzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iYm9sZCIgZm9udC1zaXplPSIzOCIgZmlsbD0iIzZiNGZkYiIgb3BhY2l0eT0iMC45NSI+SDwvdGV4dD48L3N2Zz4=">
   <link rel="stylesheet" href="/css/style.css?v=4.27.7">
+  <link rel="stylesheet" href="/css/ide-workspace.css?v=1.0.0">
   <script src="/js/theme-compat.js?v=4.24.18"></script>
   <script src="/js/theme-init.js?v=4.24.18"></script>
 </head>
@@ -314,6 +315,7 @@
           <div id="voice-bar" class="voice-bar" style="display:none"></div>
           <div class="sidebar-bottom-bar" data-haven-region="sidebar-actions">
             <button id="theme-popup-toggle" class="sidebar-bottom-btn" data-i18n-title="app.theme.title" title="Themes">🎨</button>
+            <button id="ide-workspace-toggle" class="sidebar-bottom-btn" type="button" title="IDE 工作区 / IDE workspace" aria-label="启用 IDE 工作区 / Enable IDE workspace" aria-pressed="false" disabled>IDE</button>
             <button class="sidebar-bottom-btn" id="activities-btn" data-i18n-title="modals.activities.title" title="Activities">🎮</button>
             <button class="sidebar-bottom-btn" id="sidebar-members-btn" data-i18n-title="modals.all_members.title" title="All Members" style="display:none">👥</button>
             <button id="mobile-settings-btn" class="sidebar-bottom-btn mobile-settings-btn" data-i18n-title="settings.title" title="Settings">⚙️</button>
@@ -5441,6 +5443,7 @@
   <!-- Shared with the server (src/automod.js requires the same file) so both
        sides reach identical verdicts on a link. Must load before app.js. -->
   <script src="/js/automod-rules.js?v=4.26.2"></script>
+  <script src="/js/ide-workspace-entry.js?v=1.0.0"></script>
   <script type="module" src="/js/app.js?v=4.27.6"></script>
   <script src="/js/plugin-loader.js?v=4.24.18"></script>
   <script src="/js/modules/stream-debug.js?v=4.21.0"></script>

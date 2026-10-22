@@ -229,6 +229,7 @@ _toggleThread(parentId) {
 },
 
 _openThread(parentId) {
+  this._threadNavigationEpoch = (this._threadNavigationEpoch || 0) + 1;
   this._activeThreadParent = parentId;
   // Clear any pending thread mentions for this thread/channel
   this._clearThreadMentionsForParent(this.currentChannel, parentId);
@@ -317,6 +318,7 @@ _applyThreadClosed(closed) {
 },
 
 _closeThread() {
+  this._threadNavigationEpoch = (this._threadNavigationEpoch || 0) + 1;
   this._activeThreadParent = null;
   this._clearThreadReply();
   const panel = document.getElementById('thread-panel');

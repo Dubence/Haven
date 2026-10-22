@@ -245,6 +245,9 @@ _listenChannelsAndMessages() {
     if (data.channelCode !== this.currentChannel) return;
     // E2E: decrypt DM messages before rendering
     await this._decryptMessages(data.messages);
+    // Navigation can change during async decryption. Do not replace the new
+    // channel's history (or signal its render-ready hooks) with this response.
+    if (data.channelCode !== this.currentChannel) return;
 
     // Self-healing key fetch: if the partner key was absent during decryption
     // (e.g. the pre-fetch in _recoverE2EFromBackup timed out before this
