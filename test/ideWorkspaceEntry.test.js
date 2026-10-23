@@ -11,12 +11,13 @@ const ID = 'IdeWorkspaceLayout';
 const FILE = `${ID}.plugin.js`;
 const PENDING_KEY = 'haven_pending_workspace';
 
-function page({ search = '', stored = new Map(), safe = false, owner = '', fail = false, editing = false, missing = false, desktop = true } = {}) {
+function page({ search = '', stored = new Map(), safe = false, recovery = false, owner = '', fail = false, editing = false, missing = false, desktop = true, serverDefault = '' } = {}) {
   const events = new Map();
   const attrs = new Map();
   if (safe) attrs.set('data-haven-safe-mode', '1');
   if (editing) attrs.set('data-haven-layout-editing', '1');
   if (owner) attrs.set('data-haven-layout-owner', owner);
+  if (serverDefault) attrs.set('data-haven-default-workspace', serverDefault);
   const buttonEvents = new Map();
   const buttonAttrs = new Map();
   const button = {
@@ -39,7 +40,7 @@ function page({ search = '', stored = new Map(), safe = false, owner = '', fail 
   };
   const emit = event => (events.get(event) || []).forEach(listener => listener());
   const selections = [], disabled = [], saves = [], warnings = [], urls = [];
-  const plugin = { instance: { _engaged: owner === ID }, enabled: owner === ID, suppressed: safe };
+  const plugin = { instance: { _engaged: owner === ID }, enabled: owner === ID, suppressed: safe || recovery };
   let selection = owner;
   const window = {
     location: { search, href: `https://haven.test/app${search}` },
@@ -51,7 +52,7 @@ function page({ search = '', stored = new Map(), safe = false, owner = '', fail 
       UI: { showToast: (...args) => warnings.push(args) },
     },
     HavenPluginLoader: {
-      suppressed: safe,
+      suppressed: safe || recovery,
       loadedPlugins: new Map(missing ? [] : [[FILE, plugin]]),
       disablePlugin(file) {
         disabled.push(file);
@@ -85,12 +86,14 @@ function page({ search = '', stored = new Map(), safe = false, owner = '', fail 
 
 test('IDE entry leaves an existing user layout unchanged until explicitly selected', () => {
   const p = page({ owner: 'ChromeLayout' });
+  assert.equal(p.window.HavenIdeWorkspace.hasStartupChoice(), false);
   p.emit('DOMContentLoaded');
   p.emit('haven:plugins-loaded');
   assert.deepEqual(p.selections, []);
   assert.equal(p.attrs.get('data-haven-layout-owner'), 'ChromeLayout');
   assert.equal(p.button.disabled, false);
   assert.equal(p.buttonAttrs.get('aria-pressed'), 'false');
+  assert.equal(p.window.HavenIdeWorkspace.hasStartupChoice(), false);
 });
 
 test('IDE button uses the shared selector and can return to the original layout', () => {
@@ -101,6 +104,7 @@ test('IDE button uses the shared selector and can return to the original layout'
   assert.deepEqual(p.selections, [ID]);
   assert.equal(p.attrs.get('data-haven-layout-owner'), ID);
   assert.equal(p.buttonAttrs.get('aria-pressed'), 'true');
+  assert.equal(p.window.HavenIdeWorkspace.hasStartupChoice(), false, 'a later manual toggle is not a startup override');
   p.buttonEvents.get('click')();
   assert.deepEqual(p.selections, [ID, '']);
   assert.equal(p.attrs.has('data-haven-layout-owner'), false);
@@ -113,9 +117,11 @@ test('IDE link is captured before authentication redirect and consumed after sig
   assert.equal(stored.get(PENDING_KEY), 'ide', 'captured synchronously before app boots');
   assert.deepEqual(signedOut.selections, []);
   const signedIn = page({ stored });
+  assert.equal(signedIn.window.HavenIdeWorkspace.hasStartupChoice(), true);
   signedIn.emit('haven:plugins-loaded');
   assert.deepEqual(signedIn.selections, [ID]);
   assert.equal(stored.has(PENDING_KEY), false);
+  assert.equal(signedIn.window.HavenIdeWorkspace.hasStartupChoice(), true, 'account defaults must still respect the consumed explicit choice');
 });
 
 test('IDE link consumes only its query parameter after successful startup', () => {
@@ -196,4 +202,130 @@ test('mobile fallback does not hide a real plugin startup failure', () => {
   assert.deepEqual(p.disabled, [FILE]);
   assert.equal(p.warnings.length, 1);
   assert.equal(p.buttonAttrs.get('aria-pressed'), 'false');
+});
+
+test('the server IDE default activates a new visitor without a query parameter', () => {
+  const p = page({ serverDefault: 'ide' });
+  assert.equal(p.window.HavenIdeWorkspace.hasStartupChoice(), true, 'visible synchronously before account defaults arrive');
+  p.emit('DOMContentLoaded');
+  assert.deepEqual(p.selections, [], 'selection waits until layout plugins have loaded');
+  p.emit('haven:plugins-loaded');
+  assert.deepEqual(p.selections, [ID]);
+  assert.equal(p.attrs.get('data-haven-layout-owner'), ID);
+  assert.equal(p.plugin.enabled, true);
+  assert.equal(p.buttonAttrs.get('aria-pressed'), 'true');
+  assert.equal(p.window.HavenIdeWorkspace.hasStartupChoice(), true);
+});
+
+test('the server IDE default replaces a returning visitor\'s other local layout', () => {
+  const p = page({ serverDefault: 'ide', owner: 'ChromeLayout' });
+  p.emit('haven:plugins-loaded');
+  assert.deepEqual(p.selections, [ID], 'the shared selector resolves competing layouts');
+  assert.equal(p.attrs.get('data-haven-layout-owner'), ID);
+  assert.equal(p.warnings.length, 0);
+});
+
+test('without a server IDE default the original layout and an invalid default remain unchanged', () => {
+  for (const serverDefault of ['', 'original', 'IDE', 'unknown']) {
+    const p = page({ serverDefault });
+    p.emit('haven:plugins-loaded');
+    assert.deepEqual(p.selections, [], `default ${JSON.stringify(serverDefault)} must not opt in`);
+    assert.equal(p.attrs.has('data-haven-layout-owner'), false);
+    assert.equal(p.plugin.enabled, false);
+    assert.equal(p.window.HavenIdeWorkspace.hasStartupChoice(), false);
+  }
+});
+
+test('an explicit original-layout link overrides the server IDE default for the current visit', () => {
+  const p = page({ serverDefault: 'ide', search: '?workspace=original&channel=abcd1234', owner: ID });
+  p.emit('haven:plugins-loaded');
+  assert.deepEqual(p.selections, ['']);
+  assert.equal(p.attrs.has('data-haven-layout-owner'), false);
+  assert.equal(p.plugin.enabled, false);
+  assert.equal(p.stored.has(PENDING_KEY), false);
+  assert.equal(p.urls.at(-1), '/app?channel=abcd1234');
+  assert.equal(p.window.HavenIdeWorkspace.hasStartupChoice(), true, 'the original override outlives query cleanup');
+  p.emit('haven:plugins-loaded');
+  assert.deepEqual(p.selections, [''], 'metadata refresh must not replace the explicit original choice');
+});
+
+test('an explicit IDE link works with the server default and is not reapplied after Exit', () => {
+  const p = page({ serverDefault: 'ide', search: '?workspace=ide', owner: 'ChromeLayout' });
+  p.emit('haven:plugins-loaded');
+  assert.deepEqual(p.selections, [ID]);
+  assert.equal(p.stored.has(PENDING_KEY), false);
+  assert.equal(p.window.HavenIdeWorkspace.setEnabled(false), true);
+  p.emit('haven:plugins-loaded');
+  assert.deepEqual(p.selections, [ID, '']);
+  assert.equal(p.attrs.has('data-haven-layout-owner'), false);
+  assert.equal(p.window.HavenIdeWorkspace.hasStartupChoice(), true, 'late member defaults cannot reclaim this visit after Exit');
+});
+
+test('an original-layout choice captured before login takes precedence over the server default afterward', () => {
+  const stored = new Map();
+  page({ search: '?workspace=original', stored, serverDefault: 'ide' });
+  assert.equal(stored.get(PENDING_KEY), 'original');
+  const signedIn = page({ stored, serverDefault: 'ide', owner: ID });
+  signedIn.emit('haven:plugins-loaded');
+  assert.deepEqual(signedIn.selections, ['']);
+  assert.equal(stored.has(PENDING_KEY), false);
+  signedIn.emit('haven:plugins-loaded');
+  assert.deepEqual(signedIn.selections, ['']);
+});
+
+test('a same-visit Exit survives plugin refreshes but the next normal visit uses the server default again', () => {
+  const p = page({ serverDefault: 'ide' });
+  p.emit('haven:plugins-loaded');
+  p.emit('haven:plugins-loaded');
+  assert.deepEqual(p.selections, [ID], 'duplicate ready events are idempotent');
+  p.buttonEvents.get('click')();
+  assert.equal(p.plugin.enabled, false);
+  p.emit('haven:plugins-loaded');
+  p.emit('haven:plugins-loaded');
+  assert.deepEqual(p.selections, [ID, '']);
+  assert.equal(p.attrs.has('data-haven-layout-owner'), false);
+  const nextVisit = page({ serverDefault: 'ide', owner: '' });
+  nextVisit.emit('haven:plugins-loaded');
+  assert.deepEqual(nextVisit.selections, [ID], 'a returning original-layout user receives the server default');
+});
+
+test('safe mode and pending customization recovery both suppress the server IDE default', () => {
+  for (const options of [{ safe: true }, { recovery: true }]) {
+    const p = page({ serverDefault: 'ide', search: '?workspace=ide', ...options });
+    p.emit('haven:plugins-loaded');
+    p.emit('haven:plugins-loaded');
+    assert.deepEqual(p.selections, []);
+    assert.equal(p.window.HavenIdeWorkspace.setEnabled(true), false);
+    assert.equal(p.button.disabled, true);
+    assert.equal(p.stored.has(PENDING_KEY), false);
+    assert.equal(p.attrs.has('data-haven-layout-owner'), false);
+    assert.equal(p.window.HavenIdeWorkspace.hasStartupChoice(), true, 'recovery stays protected from late legacy member defaults');
+  }
+});
+
+test('a failed server-default activation restores the prior layout without retrying on metadata refresh', () => {
+  const p = page({ serverDefault: 'ide', owner: 'ChromeLayout', fail: true });
+  p.emit('haven:plugins-loaded');
+  assert.deepEqual(p.selections, [ID, 'ChromeLayout']);
+  assert.deepEqual(p.disabled, [FILE]);
+  assert.deepEqual(p.saves, [[ID, 'layoutOn', '0']]);
+  assert.equal(p.attrs.get('data-haven-layout-owner'), 'ChromeLayout');
+  assert.equal(p.warnings.length, 1);
+  p.emit('haven:plugins-loaded');
+  assert.deepEqual(p.selections, [ID, 'ChromeLayout']);
+  assert.equal(p.warnings.length, 1, 'failure must not trap the visitor in repeated activation attempts');
+});
+
+test('the server default keeps the mobile fallback and permits a same-visit Exit', () => {
+  const p = page({ serverDefault: 'ide', desktop: false });
+  p.emit('haven:plugins-loaded');
+  assert.deepEqual(p.selections, [ID]);
+  assert.equal(p.plugin.enabled, true);
+  assert.equal(p.plugin.instance._engaged, true);
+  assert.equal(p.attrs.has('data-haven-layout-owner'), false);
+  assert.match(p.button.title, /original layout on mobile/);
+  p.buttonEvents.get('click')();
+  p.emit('haven:plugins-loaded');
+  assert.deepEqual(p.selections, [ID, '']);
+  assert.equal(p.plugin.enabled, false);
 });

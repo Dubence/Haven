@@ -4,17 +4,19 @@ Quiet Workspace 提供受 PyCharm 界面启发的真实 IDE 工作区。频道�
 
 | 形式 | 入口 | 数据与操作 |
 | --- | --- | --- |
-| IDE 工作区 | 当前服务器的 `/app?workspace=ide` | 登录后的真实频道、帖子、消息和回复 |
+| IDE 工作区 | 启用服务器默认时直接进入 `/app`；也可使用 `/app?workspace=ide` | 登录后的真实频道、帖子、消息和回复 |
 | 静态原型 | `/quiet-workspace-demo.html`，或本机预览服务器 | 演示样例；回复只保留在当前页面 |
 | 纯 CSS 主题 | 主题选择器中的 Quiet Workspace | 原生 Haven 布局；调整配色、间距和图片大小 |
 
 ## 使用真实 IDE 工作区
 
-服务器部署本版本后，在服务器地址后加上 `/app?workspace=ide`。未登录时先完成登录。页面会记住本次打开 IDE 工作区的请求，在登录后应用。
+服务器配置 `DEFAULT_WORKSPACE=ide` 后，新老用户正常打开网站并登录，就会进入 IDE 工作区，无需在地址中添加参数。已经登录的用户直接访问 `/app` 即可。服务器默认值会覆盖浏览器之前保存的布局选择，包括 Original 和其他布局插件。
+
+服务器未配置这个默认值时，仍按浏览器保存的个人选择打开。你可以使用 `/app?workspace=ide` 直接选择 IDE。未登录时先完成登录，页面会记住本次选择，在登录后应用。
 
 已经进入 Haven 的用户，也可以点击左侧栏底部的 **IDE** 按钮。另一个入口是“设置 → 布局与密度（Layout & Density）→ 侧栏布局（Sidebar Layout）”，选择“IDE Workspace Layout”。这些入口选择的是同一个布局插件。
 
-布局选择保存在当前浏览器中，不会强制其他用户切换，也不会同步到其他设备。IDE 布局需要窗口宽度至少为 901 px。宽度小于 901 px 时，页面恢复原生布局；选择状态继续保留。在同一浏览器中重新扩大窗口，IDE 布局会恢复。手机上选择 IDE 后仍显示原生移动界面。
+IDE 布局需要窗口宽度至少为 901 px。宽度小于 901 px 时，页面恢复原生布局，选择状态继续保留。在同一浏览器中重新扩大窗口，IDE 布局会恢复。手机仍显示原生移动界面，服务器默认配置不改变这个行为。
 
 常用界面操作如下。
 
@@ -27,11 +29,34 @@ Quiet Workspace 提供受 PyCharm 界面启发的真实 IDE 工作区。频道�
 | Search | 打开 Haven 的消息搜索。Project 搜索框只筛选频道，顶部 Search 搜索消息内容。 |
 | Tools | 打开原生账号、加入频道、创建频道和主题等控件。设置弹窗继续使用 Haven 的原生界面。 |
 | 左侧成员面板按钮 | 展开搜索结果、成员和语音侧栏。 |
-| Exit IDE | 恢复普通界面，并取消当前浏览器的 IDE 布局选择。 |
+| Exit IDE | 当前页面恢复普通界面；服务器启用默认 IDE 时，下次正常进入或刷新页面会再次打开 IDE。 |
 
 帖子列表显示为文件行，点击后在编辑区打开真实帖子。创建帖子、上传附件、编辑消息和表情操作继续使用 Haven 的原生控件。Console 是消息输入区，不会执行 Python 或终端命令。IDE 模式收起了线程的独立浮窗按钮，线程统一在编辑区打开。
 
-也可以访问 `/app?workspace=original`，或在布局设置中选择 Original，恢复普通界面。切换布局会把原生控件放回原位。原先选择的 CSS 主题继续保留。
+也可以访问 `/app?workspace=original`，明确选择本次使用普通界面。这个参数优先于服务器默认值；登录跳转也会保留本次选择。布局设置中的 Original 和 Exit IDE 在当前页面继续可用。切换布局会把原生控件放回原位，原先选择的 CSS 主题继续保留。
+
+服务器默认值每次页面启动只应用一次，不会在你点击 Exit IDE 后反复切回。页面稍后收到的成员默认布局，也不会覆盖本次启动选择。下次通过不带参数的入口打开或刷新页面时，服务器默认值重新生效。安全模式 `/app?haven-safe-mode=1` 继续停用布局插件，优先用于恢复和排障。
+
+## 将 IDE 设为服务器默认
+
+在 Haven 服务的 Compose 配置中，把下面一项合并到现有 `environment`，保留其他配置：
+
+```yaml
+services:
+  haven:
+    environment:
+      DEFAULT_WORKSPACE: "ide"
+```
+
+在该服务目录重建容器，使环境变量生效。已在服务器本地构建镜像的部署可以执行：
+
+```sh
+docker compose up -d --pull never haven
+```
+
+单独执行 `docker compose restart` 不会加载修改后的 Compose 环境变量。启用后，普通 `/app` 和 `/app.html` 入口都会带上服务器默认设置。此配置只决定工作区布局，不修改账号、频道、消息或权限。
+
+删除 `DEFAULT_WORKSPACE` 后重新应用 Compose，页面恢复按浏览器个人布局选择启动。移除服务器默认值不会清除已有的个人选择；用户可以用 Exit IDE 或布局设置选择 Original。
 
 ## 启动 IDE 原型
 
@@ -75,7 +100,9 @@ http://127.0.0.1:4173/theme-preview.html?theme=../themes/quiet-workspace.theme.c
 | --- | --- |
 | `plugins/IdeWorkspaceLayout.plugin.js` | 真实 IDE 布局；移动原生控件、切换频道和帖子标签、恢复普通布局 |
 | `public/css/ide-workspace.css` | 真实 IDE 工作区样式；只在桌面 IDE 模式生效 |
-| `public/js/ide-workspace-entry.js` | IDE 按钮、链接参数和登录后的布局选择 |
+| `public/js/ide-workspace-entry.js` | IDE 按钮、链接参数、服务器默认值和每次启动的布局选择 |
+| `server.js` | 读取 `DEFAULT_WORKSPACE`，为 `/app` 和 `/app.html` 注入固定的默认布局设置 |
+| `public/js/modules/app-member-defaults.js` | 收到成员默认布局时，保留本次已明确的启动选择 |
 | `public/app.html` | 加载 IDE 样式和入口脚本，提供侧栏按钮 |
 | `public/quiet-workspace-demo.html` | IDE 原型结构 |
 | `public/quiet-workspace-demo.css` | 静态原型的外观和响应式布局 |
@@ -99,4 +126,4 @@ http://127.0.0.1:4173/theme-preview.html?theme=../themes/quiet-workspace.theme.c
 node --test test/ideWorkspaceLayout.test.js test/ideWorkspaceEntry.test.js test/ideWorkspaceNavigation.test.js test/ideThreadNavigation.test.js
 ```
 
-发布前还需在测试服务器检查真实发送、刷新后读取、跨频道打开帖子、搜索、权限限制、Tools 弹窗和布局恢复。自动化测试覆盖界面逻辑，浏览器验收负责确认实际布局和服务器交互。
+发布前还需在测试服务器检查真实发送、刷新后读取、跨频道打开帖子、搜索、权限限制、Tools 弹窗和布局恢复。默认布局还需覆盖新访客、已保存 Original 的浏览器、显式 `workspace=original`、安全模式和移动界面。自动化测试覆盖界面逻辑，浏览器验收负责确认实际布局和服务器交互。

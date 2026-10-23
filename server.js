@@ -681,6 +681,19 @@ if (RUFFLE_DIR) {
 app.use('/games/roms', express.static(GAMES_ROMS_DIR, { dotfiles: 'deny', maxAge: 0 }));
 
 // ── Static files with caching ────────────────────────────
+// Both entry URLs need deployment settings, before static /app.html can win.
+app.get(['/app', '/app.html'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  const ver = require('./package.json').version;
+  let html = fs.readFileSync(path.join(__dirname, 'public', 'app.html'), 'utf8');
+  html = html.replace(/(\?v=)[^"']*/g, `$1${ver}`);
+  // Only a fixed supported value is inserted, never arbitrary env content.
+  if (process.env.DEFAULT_WORKSPACE === 'ide') {
+    html = html.replace(/<html\b/i, '<html data-haven-default-workspace="ide"');
+  }
+  res.type('html').send(html);
+});
+
 app.use(express.static(path.join(__dirname, 'public'), {
   dotfiles: 'deny',       // block .env, .git, etc.
   etag: true,             // ETag for conditional requests
@@ -1206,16 +1219,6 @@ app.post('/api/tunnel/sync', express.json(), async (req, res) => {
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.get('/app', (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache');
-  // Inject current version into cache-busting query strings so client
-  // assets are never served stale after an update (especially in Electron).
-  const ver = require('./package.json').version;
-  let html = fs.readFileSync(path.join(__dirname, 'public', 'app.html'), 'utf8');
-  html = html.replace(/(\?v=)[^"']*/g, `$1${ver}`);
-  res.type('html').send(html);
 });
 
 // ── Vanity invite link (/invite/:code) ────────────────

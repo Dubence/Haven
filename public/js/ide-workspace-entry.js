@@ -1,5 +1,5 @@
-// A personal layout choice. The normal Haven app still owns channels,
-// messages and permissions; this entry only selects its IDE layout plugin.
+// Select the server's startup workspace or an explicit personal override.
+// Haven still owns channels, messages and permissions.
 (() => {
   'use strict';
 
@@ -7,6 +7,7 @@
   const FILE = `${ID}.plugin.js`;
   const PENDING_KEY = 'haven_pending_workspace';
   let requested = null;
+  let startupHandled = false;
 
   // This script runs before HavenApp's authentication redirect. Remember a
   // deep link through sign-in without changing the account's theme preference.
@@ -21,6 +22,10 @@
   } catch {
     // A direct link still works in this page when browser storage is blocked.
   }
+
+  const startupChoice = requested === 'ide' || requested === 'original'
+    ? requested
+    : document.documentElement.getAttribute('data-haven-default-workspace') === 'ide' ? 'ide' : null;
 
   function clearRequest() {
     requested = null;
@@ -135,17 +140,20 @@
     sync();
   }
 
-  window.HavenIdeWorkspace = { setEnabled, toggle };
+  window.HavenIdeWorkspace = { setEnabled, toggle, hasStartupChoice: () => startupChoice != null };
   window.addEventListener('resize', sync);
   document.addEventListener('haven:layout-owner-change', sync);
   document.addEventListener('haven:plugins-loaded', () => {
     bind();
+    // Refreshing plugins must not undo a manual Exit IDE in this document.
+    if (startupHandled) return;
+    startupHandled = true;
     if (suppressed()) {
       // A recovery visit must not queue a layout to reappear after recovery.
       clearRequest();
       return;
     }
-    if (requested === 'ide' || requested === 'original') setEnabled(requested === 'ide');
+    if (startupChoice != null) setEnabled(startupChoice === 'ide');
   });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, { once: true });
   else bind();

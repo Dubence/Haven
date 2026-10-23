@@ -352,6 +352,10 @@ _maybeApplyMemberDefaults() {
   const keep = {};
   const unchanged = (def, cur) => cur === def.dflt || (rec && rec.a[def.key] === cur);
   const tryApply = (def) => {
+    // An explicit workspace link or server startup layout owns this page's
+    // initial choice. Late shared defaults must not undo it, or a manual exit
+    // made afterward, regardless of whether preferences or plugins arrive first.
+    if (def.key === 'layout' && window.HavenIdeWorkspace?.hasStartupChoice?.()) return;
     const cur = def.read(this);
     if (!unchanged(def, cur)) return;
     if (cur === snap.s[def.key] || def.apply(snap.s[def.key])) applied[def.key] = snap.s[def.key];
